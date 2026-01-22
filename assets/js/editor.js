@@ -39,6 +39,12 @@
 				pirepeSpanDesktop: { type: 'number' },
 				pirepeSpanTablet: { type: 'number' },
 				pirepeSpanMobile: { type: 'number' },
+				pirepeGapDesktop: { type: 'string' },
+				pirepeGapTablet: { type: 'string' },
+				pirepeGapMobile: { type: 'string' },
+				pirepePadDesktop: { type: 'string' },
+				pirepePadTablet: { type: 'string' },
+				pirepePadMobile: { type: 'string' },
 				pirepeStackMobile: { type: 'boolean', default: false },
 				pirepeHideDesktop: { type: 'boolean', default: false },
 				pirepeHideTablet: { type: 'boolean', default: false },
@@ -78,6 +84,33 @@
 				classes.push( `pirepe-span-m-${ attributes.pirepeSpanMobile }` );
 			}
 
+			if ( isContainer ) {
+				if ( attributes.pirepeGapDesktop ) {
+					extraProps.style = extraProps.style || {};
+					extraProps.style.setProperty?.( '--pirepe-gap-d', attributes.pirepeGapDesktop );
+				}
+				if ( attributes.pirepeGapTablet ) {
+					extraProps.style = extraProps.style || {};
+					extraProps.style.setProperty?.( '--pirepe-gap-t', attributes.pirepeGapTablet );
+				}
+				if ( attributes.pirepeGapMobile ) {
+					extraProps.style = extraProps.style || {};
+					extraProps.style.setProperty?.( '--pirepe-gap-m', attributes.pirepeGapMobile );
+				}
+				if ( attributes.pirepePadDesktop ) {
+					extraProps.style = extraProps.style || {};
+					extraProps.style.setProperty?.( '--pirepe-pad-d', attributes.pirepePadDesktop );
+				}
+				if ( attributes.pirepePadTablet ) {
+					extraProps.style = extraProps.style || {};
+					extraProps.style.setProperty?.( '--pirepe-pad-t', attributes.pirepePadTablet );
+				}
+				if ( attributes.pirepePadMobile ) {
+					extraProps.style = extraProps.style || {};
+					extraProps.style.setProperty?.( '--pirepe-pad-m', attributes.pirepePadMobile );
+				}
+			}
+
 			if ( attributes.pirepeStackMobile ) {
 				classes.push( 'stack-sm' );
 			}
@@ -111,6 +144,12 @@
 				pirepeSpanDesktop,
 				pirepeSpanTablet,
 				pirepeSpanMobile,
+				pirepeGapDesktop,
+				pirepeGapTablet,
+				pirepeGapMobile,
+				pirepePadDesktop,
+				pirepePadTablet,
+				pirepePadMobile,
 				pirepeStackMobile,
 				pirepeHideDesktop,
 				pirepeHideTablet,
@@ -135,6 +174,12 @@
 			const setSpanDesktop = ( value ) => setAttributes( { pirepeSpanDesktop: value || undefined } );
 			const setSpanTablet = ( value ) => setAttributes( { pirepeSpanTablet: value || undefined } );
 			const setSpanMobile = ( value ) => setAttributes( { pirepeSpanMobile: value || undefined } );
+			const setGapDesktop = ( value ) => setAttributes( { pirepeGapDesktop: value || undefined } );
+			const setGapTablet = ( value ) => setAttributes( { pirepeGapTablet: value || undefined } );
+			const setGapMobile = ( value ) => setAttributes( { pirepeGapMobile: value || undefined } );
+			const setPadDesktop = ( value ) => setAttributes( { pirepePadDesktop: value || undefined } );
+			const setPadTablet = ( value ) => setAttributes( { pirepePadTablet: value || undefined } );
+			const setPadMobile = ( value ) => setAttributes( { pirepePadMobile: value || undefined } );
 
 			return (
 				<Fragment>
@@ -229,6 +274,77 @@
 									min={ 1 }
 									max={ 12 }
 									allowReset
+								/>
+							</PanelBody>
+						) }
+
+						{ isContainer && (
+							<PanelBody title={ __( 'Responsive gap & padding', 'twentytwentyfive' ) } initialOpen={ false }>
+								<SelectControl
+									label={ __( 'Desktop gap', 'twentytwentyfive' ) }
+									value={ pirepeGapDesktop || '' }
+									options={ [
+										{ label: __( 'Default', 'twentytwentyfive' ), value: '' },
+										{ label: __( 'Tight', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--20)' },
+										{ label: __( 'Regular', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--40)' },
+										{ label: __( 'Relaxed', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--60)' },
+									] }
+									onChange={ setGapDesktop }
+								/>
+								<SelectControl
+									label={ __( 'Tablet gap', 'twentytwentyfive' ) }
+									value={ pirepeGapTablet || '' }
+									options={ [
+										{ label: __( 'Default', 'twentytwentyfive' ), value: '' },
+										{ label: __( 'Tight', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--20)' },
+										{ label: __( 'Regular', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--40)' },
+										{ label: __( 'Relaxed', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--60)' },
+									] }
+									onChange={ setGapTablet }
+								/>
+								<SelectControl
+									label={ __( 'Mobile gap', 'twentytwentyfive' ) }
+									value={ pirepeGapMobile || '' }
+									options={ [
+										{ label: __( 'Default', 'twentytwentyfive' ), value: '' },
+										{ label: __( 'Tight', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--20)' },
+										{ label: __( 'Regular', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--40)' },
+										{ label: __( 'Relaxed', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--60)' },
+									] }
+									onChange={ setGapMobile }
+								/>
+								<SelectControl
+									label={ __( 'Desktop padding (all sides)', 'twentytwentyfive' ) }
+									value={ pirepePadDesktop || '' }
+									options={ [
+										{ label: __( 'Default', 'twentytwentyfive' ), value: '' },
+										{ label: __( 'Compact', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--30)' },
+										{ label: __( 'Comfortable', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--50)' },
+										{ label: __( 'Spacious', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--70)' },
+									] }
+									onChange={ setPadDesktop }
+								/>
+								<SelectControl
+									label={ __( 'Tablet padding (all sides)', 'twentytwentyfive' ) }
+									value={ pirepePadTablet || '' }
+									options={ [
+										{ label: __( 'Default', 'twentytwentyfive' ), value: '' },
+										{ label: __( 'Compact', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--30)' },
+										{ label: __( 'Comfortable', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--50)' },
+										{ label: __( 'Spacious', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--70)' },
+									] }
+									onChange={ setPadTablet }
+								/>
+								<SelectControl
+									label={ __( 'Mobile padding (all sides)', 'twentytwentyfive' ) }
+									value={ pirepePadMobile || '' }
+									options={ [
+										{ label: __( 'Default', 'twentytwentyfive' ), value: '' },
+										{ label: __( 'Compact', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--20)' },
+										{ label: __( 'Comfortable', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--40)' },
+										{ label: __( 'Spacious', 'twentytwentyfive' ), value: 'var(--wp--preset--spacing--60)' },
+									] }
+									onChange={ setPadMobile }
 								/>
 							</PanelBody>
 						) }
