@@ -6,8 +6,8 @@
 	const { __ } = wp.i18n;
 	const { addFilter } = wp.hooks;
 	const { createHigherOrderComponent } = wp.compose;
-	const { InspectorControls } = wp.blockEditor || wp.editor;
-	const { PanelBody, SelectControl, RangeControl, ToggleControl, Button, ButtonGroup } = wp.components;
+	const { InspectorControls, BlockControls } = wp.blockEditor || wp.editor;
+	const { PanelBody, SelectControl, RangeControl, ToggleControl, Button, ButtonGroup, Dropdown, ToolbarGroup, ToolbarDropdownMenu } = wp.components;
 	const { Fragment } = wp.element;
 	const { useDispatch, useSelect } = wp.data;
 
@@ -193,4 +193,72 @@
 	);
 
 	addFilter( 'editor.BlockEdit', 'pirepe/layout-controls', withPirepeInspector );
+
+	// Toolbar helpers for quick presets and span.
+	const withPirepeToolbar = createHigherOrderComponent(
+		( BlockEdit ) => ( props ) => {
+			if ( ! SUPPORTED_BLOCKS.includes( props.name ) ) {
+				return <BlockEdit { ...props } />;
+			}
+
+			const { attributes, setAttributes, name } = props;
+			const { pirepeLayoutPreset, pirepeSpan } = attributes;
+			const isContainer = name === 'core/group' || name === 'core/columns';
+			const isColumn = name === 'core/column';
+
+			const setPreset = ( value ) => setAttributes( { pirepeLayoutPreset: value } );
+			const setSpan = ( value ) => setAttributes( { pirepeSpan: value || undefined } );
+
+			const presetControls = PRESETS.map( ( item ) => ( {
+				title: item.label,
+				onClick: () => setPreset( item.value ),
+				isActive: pirepeLayoutPreset === item.value,
+			} ) );
+
+			return (
+				<Fragment>
+					<BlockControls>
+						<ToolbarGroup>
+							{ isContainer && (
+								<ToolbarDropdownMenu
+									label={ __( 'Layout preset', 'twentytwentyfive' ) }
+									icon="layout"
+									controls={ presetControls }
+								/>
+							) }
+							{ isColumn && (
+								<Dropdown
+									renderToggle={ ( { isOpen, onToggle } ) => (
+										<Button
+											onClick={ onToggle }
+											aria-expanded={ isOpen }
+											icon="feedback"
+											label={ __( 'Column span', 'twentytwentyfive' ) }
+											isPressed={ isOpen }
+										/>
+									) }
+									renderContent={ () => (
+										<div style={ { minWidth: '220px', padding: '8px 12px' } }>
+											<RangeControl
+												label={ __( 'Grid span (columns)', 'twentytwentyfive' ) }
+												value={ pirepeSpan || 12 }
+												onChange={ setSpan }
+												min={ 1 }
+												max={ 12 }
+												allowReset
+											/>
+										</div>
+									) }
+								/>
+							) }
+						</ToolbarGroup>
+					</BlockControls>
+					<BlockEdit { ...props } />
+				</Fragment>
+			);
+		},
+		'pirepe-with-toolbar'
+	);
+
+	addFilter( 'editor.BlockEdit', 'pirepe/layout-toolbar', withPirepeToolbar );
 } )( window.wp );
