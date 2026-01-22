@@ -1,7 +1,7 @@
 {
-	"name": "twentytwentyfive",
+	"name": "pirepe",
 	"version": "1.4.0",
-	"description": "Default WP Theme",
+	"description": "Pirepe WordPress Theme",
 	"author": "The WordPress Contributors",
 	"license": "GPL-2.0-or-later",
 	"keywords": [
@@ -11,7 +11,7 @@
 	"bugs": {
 		"url": "https://core.trac.wordpress.org/"
 	},
-	"homepage": "https://wordpress.org/themes/twentytwentyfive/",
+	"homepage": "https://github.com/rufio-world/Pirepe_theme",
 	"engines": {
 		"node": ">=20.10.0",
 		"npm": ">=10.2.3"
