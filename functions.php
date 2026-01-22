@@ -335,6 +335,58 @@ if ( ! function_exists( 'pirepe_patterns_admin_notices' ) ) :
 		if ( $slug && isset( $messages[ $slug ] ) ) {
 			printf( '<div class="notice %1$s"><p>%2$s</p></div>', esc_attr( $messages[ $slug ][1] ), esc_html( $messages[ $slug ][0] ) );
 		}
+
+		// Export success notice (stored as option because download keeps the same page URL).
+		$export_status = get_option( 'pirepe_last_export_status', array() );
+		if ( ! empty( $export_status['timestamp'] ) ) {
+			$pattern_count   = isset( $export_status['patterns'] ) ? (int) $export_status['patterns'] : 0;
+			$template_count  = isset( $export_status['templates'] ) ? (int) $export_status['templates'] : 0;
+			$part_count      = isset( $export_status['templateParts'] ) ? (int) $export_status['templateParts'] : 0;
+			$synced_count    = isset( $export_status['syncedPatterns'] ) ? (int) $export_status['syncedPatterns'] : 0;
+			$timestamp_human = date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $export_status['timestamp'] );
+			$message         = sprintf(
+				/* translators: 1: pattern count, 2: template count, 3: template part count, 4: synced pattern count, 5: timestamp */
+				__( 'Exported %1$d patterns, %2$d templates, %3$d template parts, %4$d synced patterns at %5$s.', 'twentytwentyfive' ),
+				$pattern_count,
+				$template_count,
+				$part_count,
+				$synced_count,
+				$timestamp_human
+			);
+			printf( '<div class="notice notice-success"><p>%s</p></div>', esc_html( $message ) );
+			delete_option( 'pirepe_last_export_status' );
+		}
+
+		// Import duplicate report.
+		$import_report = get_option( 'pirepe_last_import_report', array() );
+		if ( ! empty( $import_report['mode'] ) ) {
+			$mode     = $import_report['mode'];
+			$skipped  = isset( $import_report['skipped'] ) ? (array) $import_report['skipped'] : array();
+			$overwrote = isset( $import_report['overwrote'] ) ? (array) $import_report['overwrote'] : array();
+			$lines    = array();
+			if ( $skipped ) {
+				$lines[] = sprintf(
+					/* translators: %s: comma separated slugs */
+					__( 'Skipped (existing): %s', 'twentytwentyfive' ),
+					implode( ', ', array_map( 'esc_html', $skipped ) )
+				);
+			}
+			if ( $overwrote ) {
+				$lines[] = sprintf(
+					/* translators: %s: comma separated slugs */
+					__( 'Overwrote: %s', 'twentytwentyfive' ),
+					implode( ', ', array_map( 'esc_html', $overwrote ) )
+				);
+			}
+			if ( $lines ) {
+				printf(
+					'<div class="notice notice-info"><p>%s</p><p>%s</p></div>',
+					esc_html( sprintf( __( 'Import mode: %s', 'twentytwentyfive' ), $mode ) ),
+					implode( '<br>', $lines ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				);
+			}
+			delete_option( 'pirepe_last_import_report' );
+		}
 	}
 endif;
 add_action( 'admin_notices', 'pirepe_patterns_admin_notices' );
@@ -444,6 +496,17 @@ if ( ! function_exists( 'pirepe_handle_export_patterns' ) ) :
 			exit;
 		}
 
+		update_option(
+			'pirepe_last_export_status',
+			array(
+				'patterns'       => count( $pattern_set ),
+				'templates'      => count( $template_set ),
+				'templateParts'  => count( $template_part_set ),
+				'syncedPatterns' => count( $synced_patterns ),
+				'timestamp'      => time(),
+			)
+		);
+
 		$json = wp_json_encode( $payload );
 		nocache_headers();
 		header( 'Content-Type: application/json; charset=utf-8' );
@@ -484,6 +547,9 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 		$mode            = in_array( $mode, array( 'skip', 'overwrite' ), true ) ? $mode : 'skip';
 
 		$sanitized_patterns = array();
+		$skipped_slugs   = array();
+		$overwrote_slugs = array();
+
 		if ( is_array( $pattern_payload ) ) {
 			foreach ( $pattern_payload as $pattern ) {
 				if ( empty( $pattern['slug'] ) || empty( $pattern['title'] ) || empty( $pattern['content'] ) ) {
@@ -526,6 +592,9 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 				if ( empty( $exists ) ) {
 					$merged_patterns[] = $pattern;
 				}
+				if ( ! empty( $exists ) ) {
+					$skipped_slugs[] = $pattern['slug'];
+				}
 			}
 		}
 		update_option( 'pirepe_custom_patterns', $merged_patterns );
@@ -553,6 +622,7 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 					)
 				);
 				if ( $existing && 'skip' === $mode ) {
+					$skipped_slugs[] = $template['slug'];
 					continue;
 				}
 				if ( $existing && 'overwrite' === $mode ) {
@@ -565,6 +635,7 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 							'post_content' => wp_slash( (string) $template['content'] ),
 						)
 					);
+					$overwrote_slugs[] = $template['slug'];
 				} else {
 					$post_id = wp_insert_post(
 						array(
@@ -602,6 +673,7 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 					)
 				);
 				if ( $existing && 'skip' === $mode ) {
+					$skipped_slugs[] = $part['slug'];
 					continue;
 				}
 				if ( $existing && 'overwrite' === $mode ) {
@@ -614,6 +686,7 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 							'post_content' => wp_slash( (string) $part['content'] ),
 						)
 					);
+					$overwrote_slugs[] = $part['slug'];
 				} else {
 					$post_id = wp_insert_post(
 						array(
@@ -660,6 +733,7 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 					)
 				);
 				if ( $existing && 'skip' === $mode ) {
+					$skipped_slugs[] = $block['slug'];
 					continue;
 				}
 				if ( $existing && 'overwrite' === $mode ) {
@@ -672,6 +746,7 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 							'post_content' => wp_slash( (string) $block['content'] ),
 						)
 					);
+					$overwrote_slugs[] = $block['slug'];
 				} else {
 					$post_id = wp_insert_post(
 						array(
@@ -689,6 +764,16 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 				}
 			}
 		}
+
+		update_option(
+			'pirepe_last_import_report',
+			array(
+				'mode'       => $mode,
+				'skipped'    => array_slice( array_values( array_unique( $skipped_slugs ) ), 0, 12 ),
+				'overwrote'  => array_slice( array_values( array_unique( $overwrote_slugs ) ), 0, 12 ),
+				'timestamp'  => time(),
+			)
+		);
 
 		wp_redirect( add_query_arg( 'pirepe_import', 'success', wp_get_referer() ) );
 		exit;
