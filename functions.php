@@ -137,6 +137,9 @@ if ( ! function_exists( 'pirepe_enqueue_editor_assets' ) ) :
 	 * @return void
 	 */
 	function pirepe_enqueue_editor_assets() {
+		if ( ! current_user_can( 'edit_theme_options' ) ) {
+			return;
+		}
 		$handle = 'pirepe-editor';
 		wp_enqueue_script(
 			$handle,
@@ -148,6 +151,241 @@ if ( ! function_exists( 'pirepe_enqueue_editor_assets' ) ) :
 	}
 endif;
 add_action( 'enqueue_block_editor_assets', 'pirepe_enqueue_editor_assets' );
+
+/**
+ * PERFORMANCE TWEAKS
+ */
+if ( ! function_exists( 'pirepe_performance_tweaks' ) ) :
+	/**
+	 * Disable emojis and oEmbed discovery to reduce requests.
+	 *
+	 * @return void
+	 */
+	function pirepe_performance_tweaks() {
+		// Emojis.
+		remove_action( 'wp_head', 'print_emoji_detection_script', 7 );
+		remove_action( 'admin_print_scripts', 'print_emoji_detection_script' );
+		remove_action( 'wp_print_styles', 'print_emoji_styles' );
+		remove_action( 'admin_print_styles', 'print_emoji_styles' );
+
+		// oEmbed discovery links.
+		remove_action( 'wp_head', 'wp_oembed_add_discovery_links' );
+		remove_action( 'wp_head', 'rest_output_link_wp_head' );
+	}
+endif;
+add_action( 'init', 'pirepe_performance_tweaks' );
+
+// Ensure lazy loading remains enabled but allow opting out via filter.
+add_filter( 'wp_lazy_loading_enabled', '__return_true' );
+
+/**
+ * SEO / SCHEMA: Basic Organization schema in head.
+ */
+if ( ! function_exists( 'pirepe_output_schema' ) ) :
+	/**
+	 * Outputs lightweight Organization schema using site data.
+	 *
+	 * @return void
+	 */
+	function pirepe_output_schema() {
+		if ( is_admin() ) {
+			return;
+		}
+
+		$site_name = get_bloginfo( 'name' );
+		$site_url  = home_url( '/' );
+		$logo_id   = get_theme_mod( 'custom_logo' );
+		$logo_url  = $logo_id ? wp_get_attachment_image_url( $logo_id, 'full' ) : '';
+
+		$schema = array(
+			'@context'   => 'https://schema.org',
+			'@type'      => 'Organization',
+			'name'       => $site_name,
+			'url'        => $site_url,
+			'logo'       => $logo_url ?: $site_url,
+			'sameAs'     => array(),
+			'description'=> get_bloginfo( 'description' ),
+		);
+
+		echo '<script type="application/ld+json">' . wp_json_encode( $schema ) . '</script>';
+	}
+endif;
+add_action( 'wp_head', 'pirepe_output_schema' );
+
+/**
+ * PATTERN EXPORT/IMPORT (theme-scoped).
+ */
+if ( ! function_exists( 'pirepe_register_custom_patterns' ) ) :
+	/**
+	 * Register user-imported patterns stored in the options table.
+	 *
+	 * @return void
+	 */
+	function pirepe_register_custom_patterns() {
+		$patterns = get_option( 'pirepe_custom_patterns', array() );
+		if ( empty( $patterns ) || ! is_array( $patterns ) ) {
+			return;
+		}
+
+		foreach ( $patterns as $pattern ) {
+			if ( empty( $pattern['slug'] ) || empty( $pattern['title'] ) || empty( $pattern['content'] ) ) {
+				continue;
+			}
+
+			register_block_pattern(
+				sanitize_key( $pattern['slug'] ),
+				array(
+					'title'         => wp_strip_all_tags( $pattern['title'] ),
+					'description'   => isset( $pattern['description'] ) ? sanitize_text_field( $pattern['description'] ) : '',
+					'categories'    => isset( $pattern['categories'] ) && is_array( $pattern['categories'] ) ? array_map( 'sanitize_key', $pattern['categories'] ) : array( 'layout' ),
+					'content'       => $pattern['content'],
+					'inserter'      => true,
+				)
+			);
+		}
+	}
+endif;
+add_action( 'init', 'pirepe_register_custom_patterns', 20 );
+
+if ( ! function_exists( 'pirepe_patterns_admin_menu' ) ) :
+	/**
+	 * Adds a Patterns Toolkit admin page for export/import.
+	 *
+	 * @return void
+	 */
+	function pirepe_patterns_admin_menu() {
+		if ( ! current_user_can( 'edit_theme_options' ) ) {
+			return;
+		}
+
+		add_submenu_page(
+			'themes.php',
+			__( 'Pirepe Patterns', 'twentytwentyfive' ),
+			__( 'Pirepe Patterns', 'twentytwentyfive' ),
+			'edit_theme_options',
+			'pirepe-patterns',
+			'pirepe_render_patterns_page'
+		);
+	}
+endif;
+add_action( 'admin_menu', 'pirepe_patterns_admin_menu' );
+
+if ( ! function_exists( 'pirepe_render_patterns_page' ) ) :
+	/**
+	 * Render admin page.
+	 *
+	 * @return void
+	 */
+	function pirepe_render_patterns_page() {
+		if ( ! current_user_can( 'edit_theme_options' ) ) {
+			return;
+		}
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Pirepe Pattern Library', 'twentytwentyfive' ); ?></h1>
+			<p><?php esc_html_e( 'Export theme-registered patterns or import custom patterns as JSON.', 'twentytwentyfive' ); ?></p>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php wp_nonce_field( 'pirepe_export_patterns' ); ?>
+				<input type="hidden" name="action" value="pirepe_export_patterns" />
+				<?php submit_button( __( 'Export Patterns JSON', 'twentytwentyfive' ), 'primary' ); ?>
+			</form>
+			<hr />
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data">
+				<?php wp_nonce_field( 'pirepe_import_patterns' ); ?>
+				<input type="hidden" name="action" value="pirepe_import_patterns" />
+				<p>
+					<label for="pirepe_patterns_file"><?php esc_html_e( 'Import JSON file', 'twentytwentyfive' ); ?></label><br />
+					<input type="file" id="pirepe_patterns_file" name="pirepe_patterns_file" accept=".json" required />
+				</p>
+				<?php submit_button( __( 'Import Patterns', 'twentytwentyfive' ), 'secondary' ); ?>
+			</form>
+		</div>
+		<?php
+	}
+endif;
+
+if ( ! function_exists( 'pirepe_handle_export_patterns' ) ) :
+	/**
+	 * Handle export request.
+	 *
+	 * @return void
+	 */
+	function pirepe_handle_export_patterns() {
+		if ( ! current_user_can( 'edit_theme_options' ) ) {
+			wp_die( __( 'Access denied', 'twentytwentyfive' ) );
+		}
+		check_admin_referer( 'pirepe_export_patterns' );
+
+		$registry = WP_Block_Patterns_Registry::get_instance();
+		$all      = $registry->get_all_registered();
+		$filtered = array();
+		foreach ( $all as $slug => $pattern ) {
+			if ( str_starts_with( $slug, 'twentytwentyfive/' ) || str_starts_with( $slug, 'pirepe-' ) ) {
+				$filtered[] = array(
+					'slug'        => $slug,
+					'title'       => $pattern['title'] ?? '',
+					'description' => $pattern['description'] ?? '',
+					'categories'  => $pattern['categories'] ?? array(),
+					'content'     => $pattern['content'] ?? '',
+				);
+			}
+		}
+
+		$json = wp_json_encode( $filtered );
+		nocache_headers();
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="pirepe-patterns.json"' );
+		echo $json;
+		exit;
+	}
+endif;
+add_action( 'admin_post_pirepe_export_patterns', 'pirepe_handle_export_patterns' );
+
+if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
+	/**
+	 * Handle import request.
+	 *
+	 * @return void
+	 */
+	function pirepe_handle_import_patterns() {
+		if ( ! current_user_can( 'edit_theme_options' ) ) {
+			wp_die( __( 'Access denied', 'twentytwentyfive' ) );
+		}
+		check_admin_referer( 'pirepe_import_patterns' );
+
+		if ( empty( $_FILES['pirepe_patterns_file']['tmp_name'] ) ) {
+			wp_redirect( add_query_arg( 'pirepe_import', 'missing', wp_get_referer() ) );
+			exit;
+		}
+
+		$contents = file_get_contents( $_FILES['pirepe_patterns_file']['tmp_name'] );
+		$data     = json_decode( $contents, true );
+
+		if ( empty( $data ) || ! is_array( $data ) ) {
+			wp_redirect( add_query_arg( 'pirepe_import', 'invalid', wp_get_referer() ) );
+			exit;
+		}
+
+		$sanitized = array();
+		foreach ( $data as $pattern ) {
+			if ( empty( $pattern['slug'] ) || empty( $pattern['title'] ) || empty( $pattern['content'] ) ) {
+				continue;
+			}
+			$sanitized[] = array(
+				'slug'        => sanitize_key( $pattern['slug'] ),
+				'title'       => wp_strip_all_tags( $pattern['title'] ),
+				'description' => isset( $pattern['description'] ) ? sanitize_text_field( $pattern['description'] ) : '',
+				'categories'  => isset( $pattern['categories'] ) && is_array( $pattern['categories'] ) ? array_map( 'sanitize_key', $pattern['categories'] ) : array( 'layout' ),
+				'content'     => wp_kses_post( $pattern['content'] ),
+			);
+		}
+
+		update_option( 'pirepe_custom_patterns', $sanitized );
+		wp_redirect( add_query_arg( 'pirepe_import', 'success', wp_get_referer() ) );
+		exit;
+	}
+endif;
+add_action( 'admin_post_pirepe_import_patterns', 'pirepe_handle_import_patterns' );
 
 // Registers pattern categories.
 if ( ! function_exists( 'twentytwentyfive_pattern_categories' ) ) :
