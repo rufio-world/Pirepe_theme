@@ -96,6 +96,37 @@ if ( ! function_exists( 'twentytwentyfive_block_styles' ) ) :
 endif;
 add_action( 'init', 'twentytwentyfive_block_styles' );
 
+// Registers layout utility block styles for boxed and full-bleed sections.
+if ( ! function_exists( 'pirepe_layout_block_styles' ) ) :
+	/**
+	 * Adds layout helper block styles to surface boxed/full-bleed toggles in the editor.
+	 *
+	 * @since Pirepe 1.0
+	 *
+	 * @return void
+	 */
+	function pirepe_layout_block_styles() {
+		register_block_style(
+			'core/group',
+			array(
+				'name'         => 'pirepe-boxed',
+				'label'        => __( 'Boxed canvas', 'twentytwentyfive' ),
+				'inline_style' => '.is-style-pirepe-boxed{}',
+			)
+		);
+
+		register_block_style(
+			'core/group',
+			array(
+				'name'         => 'pirepe-full-bleed',
+				'label'        => __( 'Full-bleed stripe', 'twentytwentyfive' ),
+				'inline_style' => '.is-style-pirepe-full-bleed{}',
+			)
+		);
+	}
+endif;
+add_action( 'init', 'pirepe_layout_block_styles' );
+
 // Registers pattern categories.
 if ( ! function_exists( 'twentytwentyfive_pattern_categories' ) ) :
 	/**

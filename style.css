@@ -74,3 +74,82 @@ h1, h2, h3, h4, h5, h6, blockquote, caption, figcaption, p {
 :where(pre) {
 	overflow-x: auto;
 }
+
+/*
+ * Pirepe grid utilities and layout helpers
+ * Provides a simple 12-column grid, gap controls, and boxed/full-bleed helpers for builder-like layouts.
+ */
+:root {
+	--pirepe-grid-gap: var(--wp--preset--spacing--40);
+	--pirepe-grid-gap-tight: var(--wp--preset--spacing--20);
+}
+
+.pirepe-grid {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: var(--pirepe-grid-gap);
+	align-items: start;
+}
+
+.pirepe-grid.gap-tight {
+	gap: var(--pirepe-grid-gap-tight);
+}
+
+.pirepe-grid.gap-loose {
+	gap: var(--wp--preset--spacing--60);
+}
+
+.pirepe-grid.align-wide {
+	margin-inline: auto;
+	max-width: var(--wp--style--global--wide-size);
+}
+
+.pirepe-content-width {
+	max-width: var(--wp--style--global--content-size);
+	margin-inline: auto;
+}
+
+.is-style-pirepe-boxed {
+	max-width: var(--wp--style--global--content-size);
+	margin-inline: auto;
+	padding: var(--wp--preset--spacing--60);
+	background: var(--wp--preset--color--accent-5);
+	border-radius: 18px;
+	box-shadow: 0 20px 60px -35px rgba(15, 23, 42, 0.35);
+}
+
+.is-style-pirepe-full-bleed {
+	width: 100vw;
+	margin-left: calc(50% - 50vw);
+	margin-right: calc(50% - 50vw);
+	padding-inline: var(--wp--preset--spacing--60);
+}
+
+.is-style-pirepe-full-bleed > .wp-block-group,
+.is-style-pirepe-full-bleed > .wp-block-columns {
+	max-width: var(--wp--style--global--wide-size);
+	margin-inline: auto;
+}
+
+.pirepe-col-1 { grid-column: span 1; }
+.pirepe-col-2 { grid-column: span 2; }
+.pirepe-col-3 { grid-column: span 3; }
+.pirepe-col-4 { grid-column: span 4; }
+.pirepe-col-5 { grid-column: span 5; }
+.pirepe-col-6 { grid-column: span 6; }
+.pirepe-col-7 { grid-column: span 7; }
+.pirepe-col-8 { grid-column: span 8; }
+.pirepe-col-9 { grid-column: span 9; }
+.pirepe-col-10 { grid-column: span 10; }
+.pirepe-col-11 { grid-column: span 11; }
+.pirepe-col-12 { grid-column: span 12; }
+
+@media (max-width: 960px) {
+	.pirepe-grid.stack-sm > * {
+		grid-column: span 12 !important;
+	}
+
+	.is-style-pirepe-full-bleed {
+		padding-inline: var(--wp--preset--spacing--50);
+	}
+}
