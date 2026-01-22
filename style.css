@@ -144,6 +144,30 @@ h1, h2, h3, h4, h5, h6, blockquote, caption, figcaption, p {
 .pirepe-col-11 { grid-column: span 11; }
 .pirepe-col-12 { grid-column: span 12; }
 
+.pirepe-layout-full,
+.pirepe-layout-halves,
+.pirepe-layout-third-two-third,
+.pirepe-layout-two-third-one-third,
+.pirepe-layout-quarter-three-quarter,
+.pirepe-layout-three-quarter-quarter,
+.pirepe-layout-quarters {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: var(--pirepe-grid-gap);
+}
+
+.pirepe-layout-full > * { grid-column: span 12; }
+.pirepe-layout-halves > * { grid-column: span 6; }
+.pirepe-layout-third-two-third > :first-child { grid-column: span 4; }
+.pirepe-layout-third-two-third > :nth-child(2) { grid-column: span 8; }
+.pirepe-layout-two-third-one-third > :first-child { grid-column: span 8; }
+.pirepe-layout-two-third-one-third > :nth-child(2) { grid-column: span 4; }
+.pirepe-layout-quarter-three-quarter > :first-child { grid-column: span 3; }
+.pirepe-layout-quarter-three-quarter > :nth-child(2) { grid-column: span 9; }
+.pirepe-layout-three-quarter-quarter > :first-child { grid-column: span 9; }
+.pirepe-layout-three-quarter-quarter > :nth-child(2) { grid-column: span 3; }
+.pirepe-layout-quarters > * { grid-column: span 3; }
+
 @media (max-width: 960px) {
 	.pirepe-grid.stack-sm > * {
 		grid-column: span 12 !important;
@@ -151,5 +175,33 @@ h1, h2, h3, h4, h5, h6, blockquote, caption, figcaption, p {
 
 	.is-style-pirepe-full-bleed {
 		padding-inline: var(--wp--preset--spacing--50);
+	}
+
+	.pirepe-layout-full > *,
+	.pirepe-layout-halves > *,
+	.pirepe-layout-third-two-third > *,
+	.pirepe-layout-two-third-one-third > *,
+	.pirepe-layout-quarter-three-quarter > *,
+	.pirepe-layout-three-quarter-quarter > *,
+	.pirepe-layout-quarters > * {
+		grid-column: span 12 !important;
+	}
+}
+
+@media (min-width: 961px) {
+	.pirepe-hide-desktop {
+		display: none !important;
+	}
+}
+
+@media (max-width: 960px) and (min-width: 661px) {
+	.pirepe-hide-tablet {
+		display: none !important;
+	}
+}
+
+@media (max-width: 660px) {
+	.pirepe-hide-mobile {
+		display: none !important;
 	}
 }

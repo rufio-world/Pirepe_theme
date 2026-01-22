@@ -127,6 +127,28 @@ if ( ! function_exists( 'pirepe_layout_block_styles' ) ) :
 endif;
 add_action( 'init', 'pirepe_layout_block_styles' );
 
+// Enqueue editor enhancements (layout presets, grid span controls, visibility toggles).
+if ( ! function_exists( 'pirepe_enqueue_editor_assets' ) ) :
+	/**
+	 * Loads custom editor script for layout controls.
+	 *
+	 * @since Pirepe 1.0
+	 *
+	 * @return void
+	 */
+	function pirepe_enqueue_editor_assets() {
+		$handle = 'pirepe-editor';
+		wp_enqueue_script(
+			$handle,
+			get_theme_file_uri( 'assets/js/editor.js' ),
+			array( 'wp-hooks', 'wp-compose', 'wp-element', 'wp-components', 'wp-blocks', 'wp-block-editor', 'wp-i18n', 'wp-data', 'wp-edit-post' ),
+			filemtime( get_theme_file_path( 'assets/js/editor.js' ) ),
+			true
+		);
+	}
+endif;
+add_action( 'enqueue_block_editor_assets', 'pirepe_enqueue_editor_assets' );
+
 // Registers pattern categories.
 if ( ! function_exists( 'twentytwentyfive_pattern_categories' ) ) :
 	/**

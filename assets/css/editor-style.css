@@ -6,3 +6,77 @@ a {
 	text-decoration-thickness: 1px !important;
 	text-underline-offset: .1em;
 }
+
+/*
+ * Pirepe editor helpers: mirror grid/visibility utilities in the editor for accurate previews.
+ */
+:root {
+	--pirepe-grid-gap: var(--wp--preset--spacing--40);
+	--pirepe-grid-gap-tight: var(--wp--preset--spacing--20);
+}
+
+.pirepe-grid {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: var(--pirepe-grid-gap);
+	align-items: start;
+}
+
+.pirepe-grid.stack-sm > * {
+	grid-column: span 12 !important;
+}
+
+.pirepe-col-1 { grid-column: span 1; }
+.pirepe-col-2 { grid-column: span 2; }
+.pirepe-col-3 { grid-column: span 3; }
+.pirepe-col-4 { grid-column: span 4; }
+.pirepe-col-5 { grid-column: span 5; }
+.pirepe-col-6 { grid-column: span 6; }
+.pirepe-col-7 { grid-column: span 7; }
+.pirepe-col-8 { grid-column: span 8; }
+.pirepe-col-9 { grid-column: span 9; }
+.pirepe-col-10 { grid-column: span 10; }
+.pirepe-col-11 { grid-column: span 11; }
+.pirepe-col-12 { grid-column: span 12; }
+
+.pirepe-layout-full,
+.pirepe-layout-halves,
+.pirepe-layout-third-two-third,
+.pirepe-layout-two-third-one-third,
+.pirepe-layout-quarter-three-quarter,
+.pirepe-layout-three-quarter-quarter,
+.pirepe-layout-quarters {
+	display: grid;
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	gap: var(--pirepe-grid-gap);
+}
+
+.pirepe-layout-full > * { grid-column: span 12; }
+.pirepe-layout-halves > * { grid-column: span 6; }
+.pirepe-layout-third-two-third > :first-child { grid-column: span 4; }
+.pirepe-layout-third-two-third > :nth-child(2) { grid-column: span 8; }
+.pirepe-layout-two-third-one-third > :first-child { grid-column: span 8; }
+.pirepe-layout-two-third-one-third > :nth-child(2) { grid-column: span 4; }
+.pirepe-layout-quarter-three-quarter > :first-child { grid-column: span 3; }
+.pirepe-layout-quarter-three-quarter > :nth-child(2) { grid-column: span 9; }
+.pirepe-layout-three-quarter-quarter > :first-child { grid-column: span 9; }
+.pirepe-layout-three-quarter-quarter > :nth-child(2) { grid-column: span 3; }
+.pirepe-layout-quarters > * { grid-column: span 3; }
+
+@media (min-width: 961px) {
+	.pirepe-hide-desktop {
+		display: none !important;
+	}
+}
+
+@media (max-width: 960px) and (min-width: 661px) {
+	.pirepe-hide-tablet {
+		display: none !important;
+	}
+}
+
+@media (max-width: 660px) {
+	.pirepe-hide-mobile {
+		display: none !important;
+	}
+}
