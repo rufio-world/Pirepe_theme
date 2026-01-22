@@ -297,6 +297,13 @@ if ( ! function_exists( 'pirepe_render_patterns_page' ) ) :
 					<label for="pirepe_patterns_file"><?php esc_html_e( 'Import JSON file', 'twentytwentyfive' ); ?></label><br />
 					<input type="file" id="pirepe_patterns_file" name="pirepe_patterns_file" accept=".json" required />
 				</p>
+				<p>
+					<label for="pirepe_import_mode"><?php esc_html_e( 'When items already exist', 'twentytwentyfive' ); ?></label><br />
+					<select id="pirepe_import_mode" name="pirepe_import_mode">
+						<option value="skip"><?php esc_html_e( 'Skip existing', 'twentytwentyfive' ); ?></option>
+						<option value="overwrite"><?php esc_html_e( 'Overwrite existing', 'twentytwentyfive' ); ?></option>
+					</select>
+				</p>
 				<?php submit_button( __( 'Import Patterns', 'twentytwentyfive' ), 'secondary' ); ?>
 			</form>
 		</div>
@@ -315,23 +322,18 @@ if ( ! function_exists( 'pirepe_patterns_admin_notices' ) ) :
 			return;
 		}
 		$status = isset( $_GET['pirepe_import'] ) ? sanitize_key( wp_unslash( $_GET['pirepe_import'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
-		if ( ! $status ) {
-			return;
-		}
-		$message = '';
-		$class   = 'notice-info';
-		if ( 'success' === $status ) {
-			$message = __( 'Patterns/templates imported successfully.', 'twentytwentyfive' );
-			$class   = 'notice-success';
-		} elseif ( 'invalid' === $status ) {
-			$message = __( 'Import failed: invalid or empty JSON.', 'twentytwentyfive' );
-			$class   = 'notice-error';
-		} elseif ( 'missing' === $status ) {
-			$message = __( 'Import failed: file missing.', 'twentytwentyfive' );
-			$class   = 'notice-error';
-		}
-		if ( $message ) {
-			printf( '<div class="notice %1$s"><p>%2$s</p></div>', esc_attr( $class ), esc_html( $message ) );
+		$export = isset( $_GET['pirepe_export'] ) ? sanitize_key( wp_unslash( $_GET['pirepe_export'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+
+		$messages = array(
+			'success'      => array( __( 'Patterns/templates imported successfully.', 'twentytwentyfive' ), 'notice-success' ),
+			'invalid'      => array( __( 'Import failed: invalid or empty JSON.', 'twentytwentyfive' ), 'notice-error' ),
+			'missing'      => array( __( 'Import failed: file missing.', 'twentytwentyfive' ), 'notice-error' ),
+			'export_empty' => array( __( 'Export aborted: no patterns/templates found.', 'twentytwentyfive' ), 'notice-warning' ),
+		);
+
+		$slug = $status ? $status : $export;
+		if ( $slug && isset( $messages[ $slug ] ) ) {
+			printf( '<div class="notice %1$s"><p>%2$s</p></div>', esc_attr( $messages[ $slug ][1] ), esc_html( $messages[ $slug ][0] ) );
 		}
 	}
 endif;
@@ -380,6 +382,20 @@ if ( ! function_exists( 'pirepe_handle_export_patterns' ) ) :
 
 		$template_part_set = array();
 		foreach ( $template_parts as $part ) {
+			$areas = array();
+			if ( isset( $part->area ) && $part->area ) {
+				$areas[] = $part->area;
+			}
+			if ( isset( $part->wp_id ) && $part->wp_id ) {
+				$terms = get_the_terms( $part->wp_id, 'wp_template_part_area' );
+				if ( $terms && ! is_wp_error( $terms ) ) {
+					foreach ( $terms as $term ) {
+						$areas[] = $term->slug;
+					}
+				}
+			}
+			$areas = array_unique( array_filter( $areas ) );
+
 			$template_part_set[] = array(
 				'slug'        => $part->slug,
 				'title'       => $part->title,
@@ -387,6 +403,7 @@ if ( ! function_exists( 'pirepe_handle_export_patterns' ) ) :
 				'content'     => $part->content,
 				'type'        => 'wp_template_part',
 				'area'        => isset( $part->area ) ? $part->area : '',
+				'areas'       => $areas,
 			);
 		}
 
@@ -420,6 +437,12 @@ if ( ! function_exists( 'pirepe_handle_export_patterns' ) ) :
 			'templateParts'  => $template_part_set,
 			'syncedPatterns' => $synced_patterns,
 		);
+
+		$has_payload = ( ! empty( $pattern_set ) || ! empty( $template_set ) || ! empty( $template_part_set ) || ! empty( $synced_patterns ) );
+		if ( ! $has_payload ) {
+			wp_redirect( add_query_arg( 'pirepe_export', 'export_empty', wp_get_referer() ) );
+			exit;
+		}
 
 		$json = wp_json_encode( $payload );
 		nocache_headers();
@@ -457,6 +480,8 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 		}
 
 		$pattern_payload = isset( $data['patterns'] ) ? $data['patterns'] : ( is_assoc( $data ) ? array() : $data ); // Backward compat: flat array.
+		$mode            = isset( $_POST['pirepe_import_mode'] ) ? sanitize_key( wp_unslash( $_POST['pirepe_import_mode'] ) ) : 'skip';
+		$mode            = in_array( $mode, array( 'skip', 'overwrite' ), true ) ? $mode : 'skip';
 
 		$sanitized_patterns = array();
 		if ( is_array( $pattern_payload ) ) {
@@ -473,7 +498,37 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 				);
 			}
 		}
-		update_option( 'pirepe_custom_patterns', $sanitized_patterns );
+		$current_patterns = get_option( 'pirepe_custom_patterns', array() );
+		$merged_patterns  = array();
+		if ( 'overwrite' === $mode ) {
+			$merged_patterns = $sanitized_patterns;
+			// Preserve any existing that aren't in import.
+			foreach ( $current_patterns as $pattern ) {
+				$exists = array_filter(
+					$sanitized_patterns,
+					function ( $p ) use ( $pattern ) {
+						return $p['slug'] === $pattern['slug'];
+					}
+				);
+				if ( empty( $exists ) ) {
+					$merged_patterns[] = $pattern;
+				}
+			}
+		} else {
+			$merged_patterns = $current_patterns;
+			foreach ( $sanitized_patterns as $pattern ) {
+				$exists = array_filter(
+					$current_patterns,
+					function ( $p ) use ( $pattern ) {
+						return $p['slug'] === $pattern['slug'];
+					}
+				);
+				if ( empty( $exists ) ) {
+					$merged_patterns[] = $pattern;
+				}
+			}
+		}
+		update_option( 'pirepe_custom_patterns', $merged_patterns );
 
 		// Import block templates.
 		if ( function_exists( 'wp_insert_post' ) ) {
@@ -482,14 +537,45 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 				if ( empty( $template['slug'] ) || empty( $template['content'] ) ) {
 					continue;
 				}
-				$postarr = array(
-					'post_type'    => 'wp_template',
-					'post_status'  => 'publish',
-					'post_title'   => wp_strip_all_tags( $template['title'] ?? $template['slug'] ),
-					'post_name'    => sanitize_key( $template['slug'] ),
-					'post_content' => wp_slash( (string) $template['content'] ),
+				$existing = get_posts(
+					array(
+						'name'           => sanitize_key( $template['slug'] ),
+						'post_type'      => 'wp_template',
+						'post_status'    => 'any',
+						'posts_per_page' => 1,
+						'tax_query'      => array(
+							array(
+								'taxonomy' => 'wp_theme',
+								'field'    => 'name',
+								'terms'    => wp_get_theme()->get_stylesheet(),
+							),
+						),
+					)
 				);
-				$post_id = wp_insert_post( $postarr );
+				if ( $existing && 'skip' === $mode ) {
+					continue;
+				}
+				if ( $existing && 'overwrite' === $mode ) {
+					$post_id = $existing[0]->ID;
+					wp_update_post(
+						array(
+							'ID'           => $post_id,
+							'post_status'  => 'publish',
+							'post_title'   => wp_strip_all_tags( $template['title'] ?? $template['slug'] ),
+							'post_content' => wp_slash( (string) $template['content'] ),
+						)
+					);
+				} else {
+					$post_id = wp_insert_post(
+						array(
+							'post_type'    => 'wp_template',
+							'post_status'  => 'publish',
+							'post_title'   => wp_strip_all_tags( $template['title'] ?? $template['slug'] ),
+							'post_name'    => sanitize_key( $template['slug'] ),
+							'post_content' => wp_slash( (string) $template['content'] ),
+						)
+					);
+				}
 				if ( $post_id && ! is_wp_error( $post_id ) ) {
 					wp_set_post_terms( $post_id, wp_get_theme()->get_stylesheet(), 'wp_theme' );
 				}
@@ -500,18 +586,55 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 				if ( empty( $part['slug'] ) || empty( $part['content'] ) ) {
 					continue;
 				}
-				$postarr = array(
-					'post_type'    => 'wp_template_part',
-					'post_status'  => 'publish',
-					'post_title'   => wp_strip_all_tags( $part['title'] ?? $part['slug'] ),
-					'post_name'    => sanitize_key( $part['slug'] ),
-					'post_content' => wp_slash( (string) $part['content'] ),
+				$existing = get_posts(
+					array(
+						'name'           => sanitize_key( $part['slug'] ),
+						'post_type'      => 'wp_template_part',
+						'post_status'    => 'any',
+						'posts_per_page' => 1,
+						'tax_query'      => array(
+							array(
+								'taxonomy' => 'wp_theme',
+								'field'    => 'name',
+								'terms'    => wp_get_theme()->get_stylesheet(),
+							),
+						),
+					)
 				);
-				$post_id = wp_insert_post( $postarr );
+				if ( $existing && 'skip' === $mode ) {
+					continue;
+				}
+				if ( $existing && 'overwrite' === $mode ) {
+					$post_id = $existing[0]->ID;
+					wp_update_post(
+						array(
+							'ID'           => $post_id,
+							'post_status'  => 'publish',
+							'post_title'   => wp_strip_all_tags( $part['title'] ?? $part['slug'] ),
+							'post_content' => wp_slash( (string) $part['content'] ),
+						)
+					);
+				} else {
+					$post_id = wp_insert_post(
+						array(
+							'post_type'    => 'wp_template_part',
+							'post_status'  => 'publish',
+							'post_title'   => wp_strip_all_tags( $part['title'] ?? $part['slug'] ),
+							'post_name'    => sanitize_key( $part['slug'] ),
+							'post_content' => wp_slash( (string) $part['content'] ),
+						)
+					);
+				}
 				if ( $post_id && ! is_wp_error( $post_id ) ) {
 					wp_set_post_terms( $post_id, wp_get_theme()->get_stylesheet(), 'wp_theme' );
-					if ( ! empty( $part['area'] ) ) {
-						wp_set_post_terms( $post_id, sanitize_key( $part['area'] ), 'wp_template_part_area' );
+					$areas = array();
+					if ( ! empty( $part['areas'] ) && is_array( $part['areas'] ) ) {
+						$areas = $part['areas'];
+					} elseif ( ! empty( $part['area'] ) ) {
+						$areas = array( $part['area'] );
+					}
+					foreach ( $areas as $area_slug ) {
+						wp_set_post_terms( $post_id, sanitize_key( $area_slug ), 'wp_template_part_area', true );
 					}
 				}
 			}
@@ -521,15 +644,46 @@ if ( ! function_exists( 'pirepe_handle_import_patterns' ) ) :
 				if ( empty( $block['slug'] ) || empty( $block['content'] ) ) {
 					continue;
 				}
-				$postarr = array(
-					'post_type'    => 'wp_block',
-					'post_status'  => 'publish',
-					'post_title'   => wp_strip_all_tags( $block['title'] ?? $block['slug'] ),
-					'post_name'    => sanitize_key( $block['slug'] ),
-					'post_content' => wp_slash( (string) $block['content'] ),
-					'post_author'  => get_current_user_id(),
+				$existing = get_posts(
+					array(
+						'name'           => sanitize_key( $block['slug'] ),
+						'post_type'      => 'wp_block',
+						'post_status'    => 'any',
+						'posts_per_page' => 1,
+						'tax_query'      => array(
+							array(
+								'taxonomy' => 'wp_theme',
+								'field'    => 'name',
+								'terms'    => wp_get_theme()->get_stylesheet(),
+							),
+						),
+					)
 				);
-				$post_id = wp_insert_post( $postarr );
+				if ( $existing && 'skip' === $mode ) {
+					continue;
+				}
+				if ( $existing && 'overwrite' === $mode ) {
+					$post_id = $existing[0]->ID;
+					wp_update_post(
+						array(
+							'ID'           => $post_id,
+							'post_status'  => 'publish',
+							'post_title'   => wp_strip_all_tags( $block['title'] ?? $block['slug'] ),
+							'post_content' => wp_slash( (string) $block['content'] ),
+						)
+					);
+				} else {
+					$post_id = wp_insert_post(
+						array(
+							'post_type'    => 'wp_block',
+							'post_status'  => 'publish',
+							'post_title'   => wp_strip_all_tags( $block['title'] ?? $block['slug'] ),
+							'post_name'    => sanitize_key( $block['slug'] ),
+							'post_content' => wp_slash( (string) $block['content'] ),
+							'post_author'  => get_current_user_id(),
+						)
+					);
+				}
 				if ( $post_id && ! is_wp_error( $post_id ) ) {
 					wp_set_post_terms( $post_id, wp_get_theme()->get_stylesheet(), 'wp_theme' );
 				}
