@@ -36,6 +36,9 @@
 			const extra = {
 				pirepeLayoutPreset: { type: 'string', default: '' },
 				pirepeSpan: { type: 'number' },
+				pirepeSpanDesktop: { type: 'number' },
+				pirepeSpanTablet: { type: 'number' },
+				pirepeSpanMobile: { type: 'number' },
 				pirepeStackMobile: { type: 'boolean', default: false },
 				pirepeHideDesktop: { type: 'boolean', default: false },
 				pirepeHideTablet: { type: 'boolean', default: false },
@@ -64,6 +67,15 @@
 
 			if ( blockType.name === 'core/column' && attributes.pirepeSpan ) {
 				classes.push( `pirepe-col-${ attributes.pirepeSpan }` );
+			}
+			if ( blockType.name === 'core/column' && attributes.pirepeSpanDesktop ) {
+				classes.push( `pirepe-span-d-${ attributes.pirepeSpanDesktop }` );
+			}
+			if ( blockType.name === 'core/column' && attributes.pirepeSpanTablet ) {
+				classes.push( `pirepe-span-t-${ attributes.pirepeSpanTablet }` );
+			}
+			if ( blockType.name === 'core/column' && attributes.pirepeSpanMobile ) {
+				classes.push( `pirepe-span-m-${ attributes.pirepeSpanMobile }` );
 			}
 
 			if ( attributes.pirepeStackMobile ) {
@@ -96,6 +108,9 @@
 			const {
 				pirepeLayoutPreset,
 				pirepeSpan,
+				pirepeSpanDesktop,
+				pirepeSpanTablet,
+				pirepeSpanMobile,
 				pirepeStackMobile,
 				pirepeHideDesktop,
 				pirepeHideTablet,
@@ -117,6 +132,9 @@
 
 			const setPreset = ( value ) => setAttributes( { pirepeLayoutPreset: value } );
 			const setSpan = ( value ) => setAttributes( { pirepeSpan: value || undefined } );
+			const setSpanDesktop = ( value ) => setAttributes( { pirepeSpanDesktop: value || undefined } );
+			const setSpanTablet = ( value ) => setAttributes( { pirepeSpanTablet: value || undefined } );
+			const setSpanMobile = ( value ) => setAttributes( { pirepeSpanMobile: value || undefined } );
 
 			return (
 				<Fragment>
@@ -185,6 +203,35 @@
 								) ) }
 							</ButtonGroup>
 						</PanelBody>
+
+						{ isColumn && (
+							<PanelBody title={ __( 'Responsive spans', 'twentytwentyfive' ) } initialOpen={ false }>
+								<RangeControl
+									label={ __( 'Desktop span (≥961px)', 'twentytwentyfive' ) }
+									value={ pirepeSpanDesktop || pirepeSpan || 12 }
+									onChange={ setSpanDesktop }
+									min={ 1 }
+									max={ 12 }
+									allowReset
+								/>
+								<RangeControl
+									label={ __( 'Tablet span (661-960px)', 'twentytwentyfive' ) }
+									value={ pirepeSpanTablet || pirepeSpan || 12 }
+									onChange={ setSpanTablet }
+									min={ 1 }
+									max={ 12 }
+									allowReset
+								/>
+								<RangeControl
+									label={ __( 'Mobile span (≤660px)', 'twentytwentyfive' ) }
+									value={ pirepeSpanMobile || 12 }
+									onChange={ setSpanMobile }
+									min={ 1 }
+									max={ 12 }
+									allowReset
+								/>
+							</PanelBody>
+						) }
 					</InspectorControls>
 				</Fragment>
 			);
